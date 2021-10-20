@@ -21,7 +21,7 @@ ACTIONS = [UP, DOWN, LEFT, RIGHT]
 REWARD_OUT = -5
 REWARD_BORDER = -2
 REWARD_GOAL = 10
-REWARD_EMPTY = 0
+REWARD_EMPTY = -1
 
 
 class Environment:
@@ -75,7 +75,8 @@ class Environment:
         else:
             reward = REWARD_OUT
 
-        agent.update(state, reward)
+        agent.update(action, state, reward)
+        return reward
 
 
 class Agent:
@@ -84,6 +85,8 @@ class Agent:
         self.__score = 0
         self.__last_action = None
         self.__qtable = {}
+        self.__learning_rate = 1
+        self.__discount_factor = 0.5
 
         for s in environment.states:
             self.__qtable[s] = {}
@@ -91,9 +94,15 @@ class Agent:
             for a in ACTIONS:
                 self.__qtable[s][a] = 0.0
 
-    def update(self, state: str, reward: int):
+    def update(self, action: str, state: str, reward: int):
+        maxQ = max(self.__qtable[state].values())
+        self.__qtable[self.__state][action] += self.__learning_rate * \
+            (reward + self.__discount_factor *
+             maxQ - self.__qtable[self.__state][action])
+
         self.__state = state
         self.__score += reward
+        self.__last_action = action
 
     def best_action(self):
         rewards = self.__qtable[self.__state]
@@ -113,15 +122,22 @@ class Agent:
     def score(self):
         return self.__score
 
+    @property
+    def qtable(self):
+        return self.__qtable
+
 
 if __name__ == "__main__":
     env = Environment(MAZE)
     print(env.states)
 
     agent = Agent(env)
-    action = agent.best_action()
-    print(action)
 
-    print(agent.state, agent.score)
-    env.apply(agent, action)
-    print(agent.state, agent.score)
+    i = 0
+
+    while agent.state != env.goal:
+        i += 1
+        action = agent.best_action()
+
+        reward = env.apply(agent, action)
+        print(f"{i}: {agent.state} {agent.score} ({reward}) {action}")
